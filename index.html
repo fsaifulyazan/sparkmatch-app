@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Telegram Dating Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #f4f4f5);
+      --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+      --text-color: var(--tg-theme-text-color, #18181b);
+      --hint-color: var(--tg-theme-hint-color, #71717a);
+      --button-color: var(--tg-theme-button-color, #e11d48);
+      --button-text: var(--tg-theme-button-text-color, #ffffff);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    header {
+      width: 100%;
+      padding: 16px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--button-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Card Deck Container */
+    .deck {
+      position: relative;
+      width: 90%;
+      max-width: 380px;
+      height: 65vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Individual Profile Card */
+    .card {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      background-color: var(--card-bg);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .card img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .card-info {
+      position: relative;
+      z-index: 2;
+      padding: 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+      color: #ffffff;
+    }
+
+    .card-info h2 { font-size: 1.5rem; font-weight: 700; }
+    .card-info p { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
+
+    /* Action Buttons */
+    .controls {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: transform 0.1s ease;
+    }
+
+    .btn:active { transform: scale(0.9); }
+    .btn-pass { background-color: #ffffff; color: #ef4444; }
+    .btn-like { background-color: var(--button-color); color: #ffffff; }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      color: var(--hint-color);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>🔥 Spark</header>
+
+  <div class="deck" id="deck">
+    <div class="empty-state" id="empty-state">
+      <h2>No more profiles!</h2>
+      <p>Check back later for new matches nearby.</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-pass" onclick="handleSwipe('pass')">❌</button>
+    <button class="btn btn-like" onclick="handleSwipe('like')">❤️</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    // Sample Dating Profiles
+    const profiles = [
+      { id: 1, name: "Sophia", age: 24, bio: "Coffee lover ☕ | Photographer 📸", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop" },
+      { id: 2, name: "Lucas", age: 27, bio: "Software Dev 💻 | Trail Runner 🏃‍♂️", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop" },
+      { id: 3, name: "Emma", age: 23, bio: "Indie Music 🎧 | Travel Addict ✈️", img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop" }
+    ];
+
+    let currentIndex = 0;
+    const deck = document.getElementById("deck");
+    const emptyState = document.getElementById("empty-state");
+
+    function renderCards() {
+      // Clear current deck except empty state
+      deck.querySelectorAll('.card').forEach(card => card.remove());
+
+      if (currentIndex >= profiles.length) {
+        emptyState.style.display = "block";
+        return;
+      }
+
+      emptyState.style.display = "none";
+      const profile = profiles[currentIndex];
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <img src="${profile.img}" alt="${profile.name}">
+        <div class="card-info">
+          <h2>${profile.name}, ${profile.age}</h2>
+          <p>${profile.bio}</p>
+        </div>
+      `;
+      deck.appendChild(card);
+    }
+
+    function handleSwipe(action) {
+      if (currentIndex >= profiles.length) return;
+
+      const card = deck.querySelector('.card');
+      if (!card) return;
+
+      // Native Haptic Feedback on button press
+      if (tg.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred(action === 'like' ? 'medium' : 'light');
+      }
+
+      // Swipe animation
+      card.style.transform = action === 'like' 
+        ? 'translateX(150%) rotate(20deg)' 
+        : 'translateX(-150%) rotate(-20deg)';
+      card.style.opacity = '0';
+
+      setTimeout(() => {
+        if (action === 'like') {
+          const user = tg.initDataUnsafe?.user?.first_name || "You";
+          tg.showAlert(`It's a Match! 🎉 You and ${profiles[currentIndex].name} liked each other.`);
+        }
+        currentIndex++;
+        renderCards();
+      }, 200);
+    }
+
+    // Initial Render
+    renderCards();
+  </script>
+</body>
+</html>
